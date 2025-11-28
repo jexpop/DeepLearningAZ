@@ -61,6 +61,7 @@ X_test = sc_X.transform(X_test)
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
 
 # Inicializar la RNA
 classifier = Sequential()
@@ -69,10 +70,12 @@ classifier = Sequential()
 # units = media entre nodos de entrada y de salida
 classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
                      activation = "relu", input_dim = 11))
+classifier.add(Dropout(rate = 0.1))
 
 # Añadir la segunda capa oculta
 classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
                      activation = "relu"))
+classifier.add(Dropout(rate = 0.1))
 
 # Añadir la capa de salida
 classifier.add(Dense(units = 1, kernel_initializer = "uniform", 
@@ -96,3 +99,102 @@ y_pred = (y_pred>0.5)
 # Elaborar una matriz de confusión
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, y_pred)
+
+
+# Parte 4 - Evaluar, mejorar y ajustar la RNA
+
+# Evaluar
+from scikeras.wrappers import KerasClassifier
+from sklearn.model_selection import cross_val_score
+
+def build_classifier():
+    # Inicializar la RNA
+    classifier = Sequential()
+
+    # Añadir las capas de entrada y primera capa oculta
+    # units = media entre nodos de entrada y de salida
+    classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
+                         activation = "relu", input_dim = 11))
+
+    # Añadir la segunda capa oculta
+    classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
+                         activation = "relu"))
+
+    # Añadir la capa de salida
+    classifier.add(Dense(units = 1, kernel_initializer = "uniform", 
+                         activation = "sigmoid"))
+
+    # Compilar la RNA
+    classifier.compile(optimizer = "adam", 
+                       loss = "binary_crossentropy",
+                       metrics = ["accuracy"])
+
+    # Devolver el clasificador
+    return classifier
+
+classifier = KerasClassifier(build_fn = build_classifier, 
+                             batch_size = 10,
+                             epochs = 100)
+
+accuracies = cross_val_score(estimator = classifier, 
+                             X = X_train, 
+                             y = y_train,
+                             cv = 10,
+                             n_jobs = -1)
+
+mean = accuracies.mean()
+variance = accuracies.std()
+
+# Mejorar la RNA
+# Regulariación de Dropout para evitar overfitting
+
+# Ajustar la RNA
+from sklearn.model_selection import GridSearchCV
+
+def build_classifier_adjust(): # (optimizer):
+    # Inicializar la RNA
+    classifier = Sequential()
+
+    # Añadir las capas de entrada y primera capa oculta
+    # units = media entre nodos de entrada y de salida
+    classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
+                         activation = "relu", input_dim = 11))
+
+    # Añadir la segunda capa oculta
+    classifier.add(Dense(units = 6, kernel_initializer = "uniform", 
+                         activation = "relu"))
+
+    # Añadir la capa de salida
+    classifier.add(Dense(units = 1, kernel_initializer = "uniform", 
+                         activation = "sigmoid"))
+
+    # Compilar la RNA
+    classifier.compile(optimizer = "rmsprop", #optimizer, 
+                       loss = "binary_crossentropy",
+                       metrics = ["accuracy"])
+
+    # Devolver el clasificador
+    return classifier
+
+classifier = KerasClassifier(build_fn = build_classifier_adjust)
+parameters = {
+    'batch_size' : [25,32],
+    'epochs' : [100,500]#,
+    #'optimizer' : ['adam','rmsprop'] aquí no funciona
+}
+
+grid_search = GridSearchCV(estimator = classifier, 
+                           param_grid = parameters,
+                           scoring = 'accuracy',
+                           cv = 10)
+
+grid_search = grid_search.fit(X_train, y_train)
+
+best_parameters = grid_search.best_params_
+best_accuracy = grid_search.best_score_
+
+
+
+
+
+
